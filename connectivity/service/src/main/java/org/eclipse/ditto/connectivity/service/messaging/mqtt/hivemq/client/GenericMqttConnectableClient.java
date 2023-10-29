@@ -15,6 +15,9 @@ package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client;
 import java.util.concurrent.CompletionStage;
 
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.connect.GenericMqttConnect;
+import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
+
+import io.reactivex.Flowable;
 
 /**
  * Represents an MQTT client which is capable of connecting to and disconnecting from a broker.
@@ -53,4 +56,5 @@ interface GenericMqttConnectableClient {
      */
     CompletionStage<Void> disconnect();
 
+    Flowable<GenericMqttPublish> unsolicitedPublishes();
 }

@@ -36,15 +36,18 @@ import io.reactivex.Single;
  */
 final class DefaultGenericMqttClient implements GenericMqttClient {
 
+    private final BaseGenericMqttConnectableClient<?> connectableClient;
     private final BaseGenericMqttSubscribingClient<?> subscribingClient;
     private final BaseGenericMqttPublishingClient<?> publishingClient;
     private final HiveMqttClientProperties hiveMqttClientProperties;
     private final DittoLogger logger;
 
-    private DefaultGenericMqttClient(final BaseGenericMqttSubscribingClient<?> subscribingClient,
+    private DefaultGenericMqttClient(final BaseGenericMqttConnectableClient<?> connectableClient,
+            final BaseGenericMqttSubscribingClient<?> subscribingClient,
             final BaseGenericMqttPublishingClient<?> publishingClient,
             final HiveMqttClientProperties hiveMqttClientProperties) {
 
+        this.connectableClient = connectableClient;
         this.subscribingClient = subscribingClient;
         this.publishingClient = publishingClient;
         this.hiveMqttClientProperties = hiveMqttClientProperties;
@@ -52,11 +55,13 @@ final class DefaultGenericMqttClient implements GenericMqttClient {
                 .withMdcEntry(ConnectivityMdcEntryKey.CONNECTION_ID, hiveMqttClientProperties.getConnectionId());
     }
 
-    static GenericMqttClient newInstance(final BaseGenericMqttSubscribingClient<?> genericMqttSubscribingClient,
+    static GenericMqttClient newInstance(final BaseGenericMqttConnectableClient<?> genericMqttConnectableClient,
+            final BaseGenericMqttSubscribingClient<?> genericMqttSubscribingClient,
             final BaseGenericMqttPublishingClient<?> genericMqttPublishingClient,
             final HiveMqttClientProperties hiveMqttClientProperties) {
 
-        return new DefaultGenericMqttClient(checkNotNull(genericMqttSubscribingClient, "genericMqttSubscribingClient"),
+        return new DefaultGenericMqttClient(checkNotNull(genericMqttConnectableClient, "genericMqttConnectableClient"),
+                checkNotNull(genericMqttSubscribingClient, "genericMqttSubscribingClient"),
                 checkNotNull(genericMqttPublishingClient, "genericMqttPublishingClient"),
                 checkNotNull(hiveMqttClientProperties, "hiveMqttClientProperties"));
     }
@@ -150,6 +155,11 @@ final class DefaultGenericMqttClient implements GenericMqttClient {
                     }
                 })
                 .toCompletableFuture();
+    }
+
+    @Override
+    public Flowable<GenericMqttPublish> unsolicitedPublishes() {
+        return connectableClient.unsolicitedPublishes();
     }
 
     @Override

@@ -448,7 +448,7 @@ public final class MqttClientActor extends BaseClientActor {
     private CompletionStage<Source<SubscribeResult, NotUsed>> subscribe() {
         final CompletionStage<Source<SubscribeResult, NotUsed>> result;
         if (null != genericMqttClient) {
-            final var subscriber = MqttSubscriber.newInstance(genericMqttClient);
+            final var subscriber = MqttSubscriber.newInstance(genericMqttClient, genericMqttClient.unsolicitedPublishes());
             result = CompletableFuture.completedFuture(
                     subscriber.subscribeForConnectionSources(connection().getSources())
             );

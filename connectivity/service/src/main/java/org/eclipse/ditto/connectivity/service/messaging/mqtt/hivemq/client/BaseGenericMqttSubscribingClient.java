@@ -63,16 +63,18 @@ abstract class BaseGenericMqttSubscribingClient<C extends MqttClient>
      * Returns an instance of {@code BaseGenericMqttSubscribingClient} that operates on the specified
      * {@code Mqtt3RxClient} argument.
      *
-     * @param mqtt3RxClient the MQTT client for subscribing to topics.
+     * @param mqtt3RxClient    the MQTT client for subscribing to topics.
+     * @param connectingClient
      * @return the instance.
      * @throws NullPointerException if {@code mqtt3AsyncClient} is {@code null}.
      */
     static BaseGenericMqttSubscribingClient<Mqtt3RxClient> ofMqtt3RxClient(final Mqtt3RxClient mqtt3RxClient,
+            BaseGenericMqttConnectableClient<?> connectingClient,
             final ClientRole clientRole) {
 
         checkNotNull(mqtt3RxClient, "mqtt3RxClient");
         return new Mqtt3RxSubscribingClient(mqtt3RxClient,
-                BaseGenericMqttConnectableClient.ofMqtt3AsyncClient(mqtt3RxClient.toAsync()),
+                connectingClient,
                 clientRole);
     }
 
@@ -85,12 +87,18 @@ abstract class BaseGenericMqttSubscribingClient<C extends MqttClient>
      * @throws NullPointerException if {@code mqtt5RxClient} is {@code null}.
      */
     static BaseGenericMqttSubscribingClient<Mqtt5RxClient> ofMqtt5RxClient(final Mqtt5RxClient mqtt5RxClient,
+            BaseGenericMqttConnectableClient<?> connectingClient,
             final ClientRole clientRole) {
 
         checkNotNull(mqtt5RxClient, "mqtt5RxClient");
         return new Mqtt5RxSubscribingClient(mqtt5RxClient,
-                BaseGenericMqttConnectableClient.ofMqtt5AsyncClient(mqtt5RxClient.toAsync()),
+                connectingClient,
                 clientRole);
+    }
+
+    @Override
+    public Flowable<GenericMqttPublish> unsolicitedPublishes() {
+        return connectingClient.unsolicitedPublishes();
     }
 
     @Override

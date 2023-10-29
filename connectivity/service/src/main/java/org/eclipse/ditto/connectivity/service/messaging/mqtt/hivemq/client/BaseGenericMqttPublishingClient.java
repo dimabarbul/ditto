@@ -16,6 +16,7 @@ import java.util.concurrent.CompletionStage;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import io.reactivex.Flowable;
 import org.eclipse.ditto.base.model.common.ConditionChecker;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.connect.GenericMqttConnect;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
@@ -54,11 +55,12 @@ abstract class BaseGenericMqttPublishingClient<C extends MqttClient>
      * @throws NullPointerException if any argument is {@code null}.
      */
     static BaseGenericMqttPublishingClient<Mqtt3AsyncClient> ofMqtt3AsyncClient(final Mqtt3AsyncClient mqtt3AsyncClient,
+            BaseGenericMqttConnectableClient<?> connectingClient,
             final ClientRole clientRole) {
 
         ConditionChecker.checkNotNull(mqtt3AsyncClient, "mqtt3AsyncClient");
         return new Mqtt3AsyncPublishingClient(mqtt3AsyncClient,
-                BaseGenericMqttConnectableClient.ofMqtt3AsyncClient(mqtt3AsyncClient),
+                connectingClient,
                 clientRole);
     }
 
@@ -72,11 +74,12 @@ abstract class BaseGenericMqttPublishingClient<C extends MqttClient>
      * @throws NullPointerException if any argument is {@code null}.
      */
     static BaseGenericMqttPublishingClient<Mqtt5AsyncClient> ofMqtt5AsyncClient(final Mqtt5AsyncClient mqtt5AsyncClient,
+            BaseGenericMqttConnectableClient<?> connectingClient,
             final ClientRole clientRole) {
 
         ConditionChecker.checkNotNull(mqtt5AsyncClient, "mqtt5AsyncClient");
         return new Mqtt5AsyncPublishingClient(mqtt5AsyncClient,
-                BaseGenericMqttConnectableClient.ofMqtt5AsyncClient(mqtt5AsyncClient),
+                connectingClient,
                 clientRole);
     }
 
@@ -96,6 +99,11 @@ abstract class BaseGenericMqttPublishingClient<C extends MqttClient>
     @Override
     public CompletionStage<Void> disconnect() {
         return connectableClient.disconnect();
+    }
+
+    @Override
+    public Flowable<GenericMqttPublish> unsolicitedPublishes() {
+        return connectableClient.unsolicitedPublishes();
     }
 
     @Override
