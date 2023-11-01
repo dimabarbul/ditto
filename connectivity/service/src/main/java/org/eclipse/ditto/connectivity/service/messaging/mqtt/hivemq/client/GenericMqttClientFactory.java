@@ -72,14 +72,17 @@ public final class GenericMqttClientFactory {
         final BaseGenericMqttPublishingClient<?> publishingClient;
         final var subscribingClientIdFactory =
                 MqttClientIdentifierFactory.forSubscribingClient(hiveMqttClientProperties);
-        final var clientRole = ClientRole.CONSUMER_PUBLISHER;
+        final var clientRole = isSeparatePublisherClient(hiveMqttClientProperties) ?
+                ClientRole.CONSUMER :
+                ClientRole.CONSUMER_PUBLISHER;
         final var mqtt3Client = HiveMqttClientFactory.getMqtt3Client(hiveMqttClientProperties,
                 subscribingClientIdFactory.getMqttClientIdentifier(),
                 clientRole);
+        final var unsolicitedPublishesClient = BaseGenericMqttUnsolicitedPublishesClient.ofMqtt3AsyncClient(mqtt3Client.toAsync());
         if (isSeparatePublisherClient(hiveMqttClientProperties)) {
 
             // Create separate HiveMQ MQTT client instance for subscribing client and publishing client.
-            // Connecting client must use the same client as subscriber to not lose unsolicited messages.
+            // Unsolicited publishes client must use the same client as connecting client to not lose unsolicited messages.
             connectingClient = BaseGenericMqttConnectableClient.ofMqtt3AsyncClient(mqtt3Client.toAsync());
             subscribingClient = getSubscribingClientForMqtt3(mqtt3Client, connectingClient);
             publishingClient = getPublishingClientForMqtt3(hiveMqttClientProperties);
@@ -90,7 +93,7 @@ public final class GenericMqttClientFactory {
             publishingClient =
                     BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3Client.toAsync(), connectingClient, clientRole);
         }
-        return DefaultGenericMqttClient.newInstance(connectingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
+        return DefaultGenericMqttClient.newInstance(unsolicitedPublishesClient, subscribingClient, publishingClient, hiveMqttClientProperties);
     }
 
     private static boolean isSeparatePublisherClient(final HiveMqttClientProperties hiveMqttClientProperties) {
@@ -106,7 +109,8 @@ public final class GenericMqttClientFactory {
     }
 
     private static BaseGenericMqttPublishingClient<Mqtt3AsyncClient> getPublishingClientForMqtt3(
-            final HiveMqttClientProperties hiveMqttClientProperties) {
+            final HiveMqttClientProperties hiveMqttClientProperties
+    ) {
         final var publishingClientIdFactory = MqttClientIdentifierFactory.forPublishingClient(hiveMqttClientProperties);
         final var clientRole = ClientRole.PUBLISHER;
         final var mqtt3AsyncClient = HiveMqttClientFactory.getMqtt3Client(
@@ -127,13 +131,16 @@ public final class GenericMqttClientFactory {
         final BaseGenericMqttPublishingClient<?> publishingClient;
         final var subscribingClientIdFactory =
                 MqttClientIdentifierFactory.forSubscribingClient(hiveMqttClientProperties);
-        final var clientRole = ClientRole.CONSUMER_PUBLISHER;
+        final var clientRole = isSeparatePublisherClient(hiveMqttClientProperties) ?
+                ClientRole.CONSUMER :
+                ClientRole.CONSUMER_PUBLISHER;
         final var mqtt5Client = HiveMqttClientFactory.getMqtt5Client(hiveMqttClientProperties,
                 subscribingClientIdFactory.getMqttClientIdentifier(),
                 clientRole);
+        final var unsolicitedPublishesClient = BaseGenericMqttUnsolicitedPublishesClient.ofMqtt5AsyncClient(mqtt5Client.toAsync());
         if (isSeparatePublisherClient(hiveMqttClientProperties)) {
             // Create separate HiveMQ MQTT client instance for subscribing client and publishing client.
-            // Connecting client must use the same client as subscriber to not lose unsolicited messages.
+            // Unsolicited publishes client must use the same client as connecting client to not lose unsolicited messages.
             connectingClient = BaseGenericMqttConnectableClient.ofMqtt5AsyncClient(mqtt5Client.toAsync());
             subscribingClient = getSubscribingClientForMqtt5(mqtt5Client, connectingClient);
             publishingClient = getPublishingClientForMqtt5(hiveMqttClientProperties);
@@ -145,7 +152,7 @@ public final class GenericMqttClientFactory {
             publishingClient =
                     BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5Client.toAsync(), connectingClient, clientRole);
         }
-        return DefaultGenericMqttClient.newInstance(connectingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
+        return DefaultGenericMqttClient.newInstance(unsolicitedPublishesClient, subscribingClient, publishingClient, hiveMqttClientProperties);
     }
 
     private static BaseGenericMqttSubscribingClient<Mqtt5RxClient> getSubscribingClientForMqtt5(
@@ -156,7 +163,8 @@ public final class GenericMqttClientFactory {
     }
 
     private static BaseGenericMqttPublishingClient<Mqtt5AsyncClient> getPublishingClientForMqtt5(
-            final HiveMqttClientProperties hiveMqttClientProperties) {
+            final HiveMqttClientProperties hiveMqttClientProperties
+    ) {
         final var publishingClientIdFactory = MqttClientIdentifierFactory.forPublishingClient(hiveMqttClientProperties);
         final var clientRole = ClientRole.PUBLISHER;
         final var mqtt5AsyncClient = HiveMqttClientFactory.getMqtt5Client(

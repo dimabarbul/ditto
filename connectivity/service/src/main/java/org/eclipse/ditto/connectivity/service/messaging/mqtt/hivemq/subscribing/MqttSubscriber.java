@@ -18,7 +18,6 @@ import java.text.MessageFormat;
 import java.util.List;
 import java.util.Optional;
 
-import io.reactivex.Flowable;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client.GenericMqttSubscribingClient;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client.MqttSubscribeException;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
@@ -40,11 +39,9 @@ import scala.util.Try;
 public final class MqttSubscriber {
 
     private final GenericMqttSubscribingClient subscribingClient;
-    private final Flowable<GenericMqttPublish> unsolicitedPublishes;
 
-    private MqttSubscriber(final GenericMqttSubscribingClient subscribingClient, final Flowable<GenericMqttPublish> usolicitedPublishes) {
+    private MqttSubscriber(final GenericMqttSubscribingClient subscribingClient) {
         this.subscribingClient = subscribingClient;
-        this.unsolicitedPublishes = usolicitedPublishes;
     }
 
     /**
@@ -55,8 +52,8 @@ public final class MqttSubscriber {
      * @return the instance.
      * @throws NullPointerException if {@code genericMqttSubscribingClient} is {@code null}.
      */
-    public static MqttSubscriber newInstance(final GenericMqttSubscribingClient genericMqttSubscribingClient, final Flowable<GenericMqttPublish> unsolicitedPublishes) {
-        return new MqttSubscriber(checkNotNull(genericMqttSubscribingClient, "genericMqttSubscribingClient"), checkNotNull(unsolicitedPublishes, "unsolicitedPublishes"));
+    public static MqttSubscriber newInstance(final GenericMqttSubscribingClient genericMqttSubscribingClient) {
+        return new MqttSubscriber(checkNotNull(genericMqttSubscribingClient, "genericMqttSubscribingClient"));
     }
 
     /**
@@ -83,8 +80,6 @@ public final class MqttSubscriber {
     ) {
         checkNotNull(connectionSources, "connectionSources");
 
-        acknowledgePublishesNotFromAnyTopic(connectionSources);
-
         // Use Pairs to carry along associated connection Source.
         return Source.fromIterator(connectionSources::iterator)
                 .map(MqttSubscriber::tryToGetGenericMqttSubscribe)
@@ -101,24 +96,6 @@ public final class MqttSubscriber {
                                 error -> getSubscribeFailureSource(pair.first(), error),
                                 sourceSubscribeResultSource -> sourceSubscribeResultSource
                         ));
-    }
-
-    private void acknowledgePublishesNotFromAnyTopic(List<org.eclipse.ditto.connectivity.model.Source> connectionSources) {
-        final var topicFilters =
-                connectionSources
-                        .stream().flatMap(source -> source.getAddresses().stream())
-                        .map(MqttTopicFilter::of)
-                        .toList();
-        System.out.println("Filtering unsolicited messages to autoack");
-        unsolicitedPublishes
-                .doOnNext(p -> {
-                    System.out.println("Checking message " + p.toString());
-                    if (!messageHasRightTopicPath(p, topicFilters)) {
-                        System.out.println("Acking the message");
-                        p.acknowledge();
-                    }
-                })
-                .subscribe();
     }
 
     private static Pair<org.eclipse.ditto.connectivity.model.Source, Try<Optional<GenericMqttSubscribe>>> tryToGetGenericMqttSubscribe(
@@ -149,9 +126,7 @@ public final class MqttSubscriber {
         final List<MqttTopicFilter> topicFilters =
                 connectionSource.getAddresses().stream().map(MqttTopicFilter::of).toList();
         return SubscribeSuccess.newInstance(connectionSource,
-                Source.fromPublisher(Flowable.merge(
-                                unsolicitedPublishes,
-                        subscribingClient.consumeSubscribedPublishesWithManualAcknowledgement())
+                Source.fromPublisher(subscribingClient.consumeSubscribedPublishesWithManualAcknowledgement()
                         .filter(publish -> messageHasRightTopicPath(publish, topicFilters))));
     }
 

@@ -19,7 +19,7 @@ import java.util.concurrent.CompletionStage;
  * It abstracts protocol version 3 and 5.
  */
 public interface GenericMqttClient
-        extends GenericMqttConnectableClient, GenericMqttSubscribingClient, GenericMqttPublishingClient {
+        extends GenericMqttUnsolicitedPublishesClient, GenericMqttConnectableClient, GenericMqttSubscribingClient, GenericMqttPublishingClient {
 
     /**
      * Connects this client with the specified Connect message.

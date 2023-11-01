@@ -245,7 +245,7 @@ final class ConnectionTesterActor extends AbstractActor {
 
     private CompletionStage<TotalSubscribeResult> subscribe(final ClientContext clientContext) {
         final var mqttConnection = clientContext.connection();
-        final var mqttSubscriber = MqttSubscriber.newInstance(clientContext.genericMqttClient(), clientContext.genericMqttClient().unsolicitedPublishes());
+        final var mqttSubscriber = MqttSubscriber.newInstance(clientContext.genericMqttClient());
         return mqttSubscriber.subscribeForConnectionSources(mqttConnection.getSources())
                 .toMat(Sink.seq(), Keep.right())
                 .run(getContext().getSystem())

@@ -97,11 +97,6 @@ abstract class BaseGenericMqttSubscribingClient<C extends MqttClient>
     }
 
     @Override
-    public Flowable<GenericMqttPublish> unsolicitedPublishes() {
-        return connectingClient.unsolicitedPublishes();
-    }
-
-    @Override
     public Single<GenericMqttSubAck> subscribe(final GenericMqttSubscribe genericMqttSubscribe) {
         // Error handling is already done by implementations of BaseGenericMqttConnectingClient.
         return sendSubscribe(mqttClient, checkNotNull(genericMqttSubscribe, "genericMqttSubscribe"))

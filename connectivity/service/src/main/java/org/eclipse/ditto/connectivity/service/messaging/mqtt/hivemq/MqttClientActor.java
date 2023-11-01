@@ -15,6 +15,7 @@ package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -33,6 +34,7 @@ import org.apache.pekko.actor.Status;
 import org.apache.pekko.japi.pf.FSMStateFunctionBuilder;
 import org.apache.pekko.pattern.Patterns;
 import org.apache.pekko.stream.javadsl.Keep;
+import org.apache.pekko.stream.javadsl.Merge;
 import org.apache.pekko.stream.javadsl.Sink;
 import org.apache.pekko.stream.javadsl.Source;
 import org.eclipse.ditto.base.model.common.ConditionChecker;
@@ -59,6 +61,7 @@ import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client.HiveM
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client.NoMqttConnectionException;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.consuming.MqttConsumerActor;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.consuming.ReconnectConsumerClient;
+import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.publishing.MqttPublisherActor;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.subscribing.MqttSubscriber;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.subscribing.SubscribeResult;
@@ -71,6 +74,8 @@ import com.hivemq.client.mqtt.lifecycle.MqttDisconnectSource;
 import com.typesafe.config.Config;
 
 import scala.concurrent.ExecutionContextExecutor;
+
+import io.reactivex.disposables.Disposable;
 
 /**
  * Actor for handling connection to an MQTT broker for protocol versions 3 or 5.
@@ -85,6 +90,7 @@ public final class MqttClientActor extends BaseClientActor {
     private final AtomicBoolean automaticReconnect;
     @Nullable private ActorRef publishingActorRef;
     private final List<ActorRef> mqttConsumerActorRefs;
+    @Nullable private Disposable unsolicitedPublishesSubscription;
 
     @SuppressWarnings("java:S1144") // called by reflection
     private MqttClientActor(final Connection connection,
@@ -230,12 +236,18 @@ public final class MqttClientActor extends BaseClientActor {
     protected void cleanupResourcesForConnection() {
         mqttConsumerActorRefs.forEach(this::stopChildActor);
         stopChildActor(publishingActorRef);
+        if (unsolicitedPublishesSubscription != null) {
+            System.out.println("Disposing unsolicited publishes subscription");
+            unsolicitedPublishesSubscription.dispose();
+        }
         if (null != genericMqttClient) {
             disableAutomaticReconnect();
             genericMqttClient.disconnect();
+            genericMqttClient.dispose();
         }
 
         genericMqttClient = null;
+        unsolicitedPublishesSubscription = null;
         publishingActorRef = null;
         mqttConsumerActorRefs.clear();
     }
@@ -439,6 +451,10 @@ public final class MqttClientActor extends BaseClientActor {
     protected CompletionStage<Status.Status> startConsumerActors(@Nullable final ClientConnected clientConnected) {
         return subscribe()
                 .thenCompose(this::handleSourceSubscribeResults)
+                .thenApply(actors -> {
+                    subscribeToAcknowledgeUnsolicitedPublishes();
+                    return actors;
+                })
                 .thenApply(actorRefs -> {
                     mqttConsumerActorRefs.addAll(actorRefs);
                     return DONE;
@@ -448,7 +464,7 @@ public final class MqttClientActor extends BaseClientActor {
     private CompletionStage<Source<SubscribeResult, NotUsed>> subscribe() {
         final CompletionStage<Source<SubscribeResult, NotUsed>> result;
         if (null != genericMqttClient) {
-            final var subscriber = MqttSubscriber.newInstance(genericMqttClient, genericMqttClient.unsolicitedPublishes());
+            final var subscriber = MqttSubscriber.newInstance(genericMqttClient);
             result = CompletableFuture.completedFuture(
                     subscriber.subscribeForConnectionSources(connection().getSources())
             );
@@ -468,8 +484,36 @@ public final class MqttClientActor extends BaseClientActor {
                 .run(getContext().getSystem());
     }
 
+    private void subscribeToAcknowledgeUnsolicitedPublishes() {
+        if (null == genericMqttClient) {
+            throw new IllegalStateException("Cannot subscribe for unsolicited publishes as generic MQTT client is not yet initialised.");
+        }
+
+        final var subscribedTopics = connection().getSources()
+                .stream().flatMap(s -> s.getAddresses().stream().map(MqttTopicFilter::of))
+                .toList();
+
+        System.out.println("Subscribing to unsolicited messages to autoack");
+        unsolicitedPublishesSubscription = genericMqttClient.unsolicitedPublishes()
+                .filter(p -> messageHasNoMatchingSubscription(p, subscribedTopics))
+                .subscribe(genericMqttPublish -> {
+                            System.out.println("Acking unsolicited publish " + genericMqttPublish);
+                            genericMqttPublish.acknowledge();
+                        },
+                    p -> logger.info("Fail to read unsolicited publishes: <{}>", p));
+    }
+
+    private boolean messageHasNoMatchingSubscription(final GenericMqttPublish genericMqttPublish,
+                final List<MqttTopicFilter> topicFilters) {
+        return topicFilters.stream().noneMatch(filter -> filter.matches(genericMqttPublish.getTopic()));
+    }
+
     private ActorRef startMqttConsumerActorOrThrow(final SubscribeResult subscribeResult) {
         if (subscribeResult.isSuccess()) {
+            if (null == genericMqttClient) {
+                throw new IllegalStateException("Cannot start MQTT consumer actor as generic MQTT client is not yet initialised.");
+            }
+
             return startChildActorConflictFree(
                     MqttConsumerActor.class.getSimpleName(),
                     MqttConsumerActor.propsProcessing(connection(),
@@ -477,7 +521,11 @@ public final class MqttClientActor extends BaseClientActor {
                             subscribeResult.getConnectionSource(),
                             connectivityStatusResolver,
                             connectivityConfig(),
-                            subscribeResult.getMqttPublishSourceOrThrow())
+                            Source.combine(
+                                    Source.fromPublisher(genericMqttClient.unsolicitedPublishes()),
+                                    subscribeResult.getMqttPublishSourceOrThrow(),
+                                    Collections.emptyList(),
+                                    Merge::create))
             );
         } else {
             throw subscribeResult.getErrorOrThrow();

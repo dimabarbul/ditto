@@ -17,18 +17,12 @@ import static org.eclipse.ditto.base.model.common.ConditionChecker.checkNotNull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import com.hivemq.client.mqtt.MqttGlobalPublishFilter;
-import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish;
-import com.hivemq.client.mqtt.mqtt5.message.publish.Mqtt5Publish;
-import io.reactivex.Flowable;
-import io.reactivex.disposables.Disposable;
 import org.eclipse.ditto.base.model.common.ConditionChecker;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.connect.GenericMqttConnect;
 
 import com.hivemq.client.mqtt.MqttClient;
 import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient;
-import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 
 /**
  * Base implementation of {@link GenericMqttConnectableClient}.
@@ -95,18 +89,8 @@ abstract class BaseGenericMqttConnectableClient<C extends MqttClient> implements
 
     private static final class Mqtt3ConnectingClient extends BaseGenericMqttConnectableClient<Mqtt3AsyncClient> {
 
-        private final Flowable<Mqtt3Publish> unsolicitedPublishes;
-        private final Disposable unsolicitedPublishesDisposable;
-
         private Mqtt3ConnectingClient(final Mqtt3AsyncClient mqtt3AsyncClient) {
             super(ConditionChecker.checkNotNull(mqtt3AsyncClient, "mqtt3AsyncClient"));
-
-            unsolicitedPublishes = mqtt3AsyncClient.toRx()
-                    .publishes(MqttGlobalPublishFilter.UNSOLICITED, true)
-                    .doOnEach(s -> System.out.println("In connectable: " + s.toString()))
-                    .replay()
-                    .autoConnect();
-            unsolicitedPublishesDisposable = unsolicitedPublishes.subscribe();
         }
 
         @Override
@@ -125,33 +109,15 @@ abstract class BaseGenericMqttConnectableClient<C extends MqttClient> implements
 
         @Override
         protected CompletionStage<Void> sendDisconnect(final Mqtt3AsyncClient mqtt3AsyncClient) {
-            unsolicitedPublishesDisposable.dispose();
             return mqtt3AsyncClient.disconnect();
         }
 
-        @Override
-        public Flowable<GenericMqttPublish> unsolicitedPublishes() {
-            System.out.println("Returning unsolicited flowable from connectable client");
-            return unsolicitedPublishes.map(GenericMqttPublish::ofMqtt3Publish);
-        }
     }
 
     private static final class Mqtt5ConnectingClient extends BaseGenericMqttConnectableClient<Mqtt5AsyncClient> {
 
-        private final Flowable<Mqtt5Publish> unsolicitedPublishes;
-        private final Disposable unsolicitedPublishesDisposable;
-
         private Mqtt5ConnectingClient(final Mqtt5AsyncClient mqtt5AsyncClient) {
             super(checkNotNull(mqtt5AsyncClient, "mqtt5AsyncClient"));
-
-            System.out.println("Subscribing to unsolicited publishes in connectable client");
-            unsolicitedPublishes = mqtt5AsyncClient.toRx()
-                    .publishes(MqttGlobalPublishFilter.UNSOLICITED, true)
-                    .doOnEach(s -> System.out.println("In connectable: " + s.toString()))
-                    .replay()
-                    .autoConnect();
-            unsolicitedPublishesDisposable = unsolicitedPublishes
-                    .subscribe();
         }
 
         @Override
@@ -170,14 +136,7 @@ abstract class BaseGenericMqttConnectableClient<C extends MqttClient> implements
 
         @Override
         protected CompletionStage<Void> sendDisconnect(final Mqtt5AsyncClient mqtt5AsyncClient) {
-            unsolicitedPublishesDisposable.dispose();
             return mqtt5AsyncClient.disconnect();
-        }
-
-        @Override
-        public Flowable<GenericMqttPublish> unsolicitedPublishes() {
-            System.out.println("Returning unsolicited flowable from connectable client");
-            return unsolicitedPublishes.map(GenericMqttPublish::ofMqtt5Publish);
         }
 
     }

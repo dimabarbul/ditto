@@ -102,11 +102,6 @@ abstract class BaseGenericMqttPublishingClient<C extends MqttClient>
     }
 
     @Override
-    public Flowable<GenericMqttPublish> unsolicitedPublishes() {
-        return connectableClient.unsolicitedPublishes();
-    }
-
-    @Override
     public String toString() {
         final var mqttClientConfig = mqttClient.getConfig();
         return clientRole +
