@@ -17,6 +17,7 @@ import static org.eclipse.ditto.base.model.common.ConditionChecker.checkNotNull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.eclipse.ditto.connectivity.model.Source;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.IllegalKeepAliveIntervalSecondsException;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.connect.GenericMqttConnect;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
@@ -36,19 +37,19 @@ import io.reactivex.Single;
  */
 final class DefaultGenericMqttClient implements GenericMqttClient {
 
-    private final BaseGenericMqttUnsolicitedPublishesClient<?> unsolicitedPublishesClient;
+    private final BaseGenericMqttConsumingClient<?> consumingClient;
     private final BaseGenericMqttSubscribingClient<?> subscribingClient;
     private final BaseGenericMqttPublishingClient<?> publishingClient;
     private final HiveMqttClientProperties hiveMqttClientProperties;
     private final DittoLogger logger;
     private boolean isDisposed = false;
 
-    private DefaultGenericMqttClient(final BaseGenericMqttUnsolicitedPublishesClient<?> unsolicitedPublishesClient,
+    private DefaultGenericMqttClient(final BaseGenericMqttConsumingClient<?> consumingClient,
             final BaseGenericMqttSubscribingClient<?> subscribingClient,
             final BaseGenericMqttPublishingClient<?> publishingClient,
             final HiveMqttClientProperties hiveMqttClientProperties) {
 
-        this.unsolicitedPublishesClient = unsolicitedPublishesClient;
+        this.consumingClient = consumingClient;
         this.subscribingClient = subscribingClient;
         this.publishingClient = publishingClient;
         this.hiveMqttClientProperties = hiveMqttClientProperties;
@@ -56,12 +57,12 @@ final class DefaultGenericMqttClient implements GenericMqttClient {
                 .withMdcEntry(ConnectivityMdcEntryKey.CONNECTION_ID, hiveMqttClientProperties.getConnectionId());
     }
 
-    static GenericMqttClient newInstance(final BaseGenericMqttUnsolicitedPublishesClient<?> genericMqttUnsolicitedPublishesClient,
+    static GenericMqttClient newInstance(final BaseGenericMqttConsumingClient<?> genericMqttConsumingClient,
             final BaseGenericMqttSubscribingClient<?> genericMqttSubscribingClient,
             final BaseGenericMqttPublishingClient<?> genericMqttPublishingClient,
             final HiveMqttClientProperties hiveMqttClientProperties) {
 
-        return new DefaultGenericMqttClient(checkNotNull(genericMqttUnsolicitedPublishesClient, "genericMqttUnsolicitedPublishesClient"),
+        return new DefaultGenericMqttClient(checkNotNull(genericMqttConsumingClient, "genericMqttConsumingClient"),
                 checkNotNull(genericMqttSubscribingClient, "genericMqttSubscribingClient"),
                 checkNotNull(genericMqttPublishingClient, "genericMqttPublishingClient"),
                 checkNotNull(hiveMqttClientProperties, "hiveMqttClientProperties"));
@@ -159,8 +160,18 @@ final class DefaultGenericMqttClient implements GenericMqttClient {
     }
 
     @Override
-    public Flowable<GenericMqttPublish> unsolicitedPublishes() {
-        return unsolicitedPublishesClient.unsolicitedPublishes();
+    public Flowable<GenericMqttPublish> consumePublishes() {
+        return consumingClient.consumePublishes();
+    }
+
+    @Override
+    public Flowable<GenericMqttPublish> consumePublishes(final Source source) {
+        return consumingClient.consumePublishes(source);
+    }
+
+    @Override
+    public void stopBufferingPublishes() {
+        consumingClient.stopBufferingPublishes();
     }
 
     @Override
@@ -185,7 +196,7 @@ final class DefaultGenericMqttClient implements GenericMqttClient {
 
     @Override
     public void dispose() {
-        unsolicitedPublishesClient.dispose();
+        consumingClient.dispose();
         isDisposed = true;
     }
 

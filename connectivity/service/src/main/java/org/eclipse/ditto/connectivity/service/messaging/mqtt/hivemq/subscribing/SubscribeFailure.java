@@ -57,14 +57,6 @@ final class SubscribeFailure extends SubscribeResult {
         return false;
     }
 
-    /**
-     * Throws always an IllegalStateException.
-     */
-    @Override
-    public org.apache.pekko.stream.javadsl.Source<GenericMqttPublish, NotUsed> getMqttPublishSourceOrThrow() {
-        throw new IllegalStateException("Failure cannot provide a MQTT Publish Source.");
-    }
-
     @Override
     public MqttSubscribeException getErrorOrThrow() {
         return mqttSubscribeException;

@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
+import org.apache.pekko.stream.javadsl.Source;
 import org.eclipse.ditto.base.service.CompletableFutureUtils;
 import org.eclipse.ditto.connectivity.model.Connection;
 import org.eclipse.ditto.connectivity.model.ConnectionId;
@@ -154,7 +155,7 @@ final class ConnectionTesterActor extends AbstractActor {
                 .thenCompose(clientContext -> connectClient(clientContext)
                         .thenApply(logMqttConnectionEstablished())
                         .thenCompose(startPublisherActor())
-                        .thenCombine(subscribe(clientContext), handleTotalSubscribeResult())
+                        .thenCombine(subscribe(clientContext), handleTotalSubscribeResult(clientContext.genericMqttClient))
                         .thenCompose(getChildActorStatuses())
                         .whenComplete((childActorStatusesContext, error) -> {
                             if (null == error) {
@@ -252,14 +253,15 @@ final class ConnectionTesterActor extends AbstractActor {
                 .thenApply(TotalSubscribeResult::of);
     }
 
-    private BiFunction<PublisherActorRefContext, TotalSubscribeResult, CompletionStage<ConsumerActorRefsContext>> handleTotalSubscribeResult() {
+    private BiFunction<PublisherActorRefContext, TotalSubscribeResult, CompletionStage<ConsumerActorRefsContext>> handleTotalSubscribeResult(final GenericMqttClient genericMqttClient) {
         return (publisherActorRefContext, totalSubscribeResult) -> {
             if (totalSubscribeResult.hasFailures()) {
                 throw newMqttSubscribeExceptionForFailedSourceSubscribeResults(totalSubscribeResult);
             } else {
                 return CompletableFutureUtils.collectAsList(totalSubscribeResult.successfulSubscribeResults()
                                 .map(subscribeResult -> startConsumerActor(subscribeResult,
-                                        publisherActorRefContext.clientProperties()))
+                                        publisherActorRefContext.clientProperties(),
+                                        genericMqttClient))
                                 .map(CompletionStage::toCompletableFuture)
                                 .toList())
                         .thenApply(consumerActorRefs -> new ConsumerActorRefsContext(publisherActorRefContext,
@@ -294,8 +296,8 @@ final class ConnectionTesterActor extends AbstractActor {
 
     private CompletionStage<ActorRef> startConsumerActor(
             final SubscribeResult subscribeSuccess,
-            final HiveMqttClientProperties hiveMqttClientProperties
-    ) {
+            final HiveMqttClientProperties hiveMqttClientProperties,
+            final GenericMqttClient genericMqttClient) {
         return Patterns.ask(getSelf(),
                         new StartChildActorConflictFree(
                                 MqttConsumerActor.class.getSimpleName(),
@@ -304,7 +306,7 @@ final class ConnectionTesterActor extends AbstractActor {
                                         subscribeSuccess.getConnectionSource(),
                                         connectivityStatusResolver,
                                         hiveMqttClientProperties.getConnectivityConfig(),
-                                        subscribeSuccess.getMqttPublishSourceOrThrow())
+                                        Source.fromPublisher(genericMqttClient.consumePublishes(subscribeSuccess.getConnectionSource())))
                         ),
                         ASK_TIMEOUT)
                 .thenApply(ActorRef.class::cast);

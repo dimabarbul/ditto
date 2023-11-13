@@ -15,7 +15,6 @@ package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -34,7 +33,6 @@ import org.apache.pekko.actor.Status;
 import org.apache.pekko.japi.pf.FSMStateFunctionBuilder;
 import org.apache.pekko.pattern.Patterns;
 import org.apache.pekko.stream.javadsl.Keep;
-import org.apache.pekko.stream.javadsl.Merge;
 import org.apache.pekko.stream.javadsl.Sink;
 import org.apache.pekko.stream.javadsl.Source;
 import org.eclipse.ditto.base.model.common.ConditionChecker;
@@ -90,7 +88,7 @@ public final class MqttClientActor extends BaseClientActor {
     private final AtomicBoolean automaticReconnect;
     @Nullable private ActorRef publishingActorRef;
     private final List<ActorRef> mqttConsumerActorRefs;
-    @Nullable private Disposable unsolicitedPublishesSubscription;
+    @Nullable private Disposable unsolicitedPublishesAutoAckSubscription;
 
     @SuppressWarnings("java:S1144") // called by reflection
     private MqttClientActor(final Connection connection,
@@ -236,9 +234,9 @@ public final class MqttClientActor extends BaseClientActor {
     protected void cleanupResourcesForConnection() {
         mqttConsumerActorRefs.forEach(this::stopChildActor);
         stopChildActor(publishingActorRef);
-        if (unsolicitedPublishesSubscription != null) {
-            System.out.println("Disposing unsolicited publishes subscription");
-            unsolicitedPublishesSubscription.dispose();
+        if (unsolicitedPublishesAutoAckSubscription != null) {
+            System.out.println("Disposing unsolicited publishes subscription autoack");
+            unsolicitedPublishesAutoAckSubscription.dispose();
         }
         if (null != genericMqttClient) {
             disableAutomaticReconnect();
@@ -247,7 +245,7 @@ public final class MqttClientActor extends BaseClientActor {
         }
 
         genericMqttClient = null;
-        unsolicitedPublishesSubscription = null;
+        unsolicitedPublishesAutoAckSubscription = null;
         publishingActorRef = null;
         mqttConsumerActorRefs.clear();
     }
@@ -452,7 +450,10 @@ public final class MqttClientActor extends BaseClientActor {
         return subscribe()
                 .thenCompose(this::handleSourceSubscribeResults)
                 .thenApply(actors -> {
-                    subscribeToAcknowledgeUnsolicitedPublishes();
+                    if (null != genericMqttClient) {
+                        subscribeToAcknowledgeUnsolicitedPublishes();
+                        genericMqttClient.stopBufferingPublishes();
+                    }
                     return actors;
                 })
                 .thenApply(actorRefs -> {
@@ -485,16 +486,13 @@ public final class MqttClientActor extends BaseClientActor {
     }
 
     private void subscribeToAcknowledgeUnsolicitedPublishes() {
-        if (null == genericMqttClient) {
-            throw new IllegalStateException("Cannot subscribe for unsolicited publishes as generic MQTT client is not yet initialised.");
-        }
 
         final var subscribedTopics = connection().getSources()
                 .stream().flatMap(s -> s.getAddresses().stream().map(MqttTopicFilter::of))
                 .toList();
 
         System.out.println("Subscribing to unsolicited messages to autoack");
-        unsolicitedPublishesSubscription = genericMqttClient.unsolicitedPublishes()
+        unsolicitedPublishesAutoAckSubscription = genericMqttClient.consumePublishes()
                 .filter(p -> messageHasNoMatchingSubscription(p, subscribedTopics))
                 .subscribe(genericMqttPublish -> {
                             System.out.println("Acking unsolicited publish " + genericMqttPublish);
@@ -521,11 +519,7 @@ public final class MqttClientActor extends BaseClientActor {
                             subscribeResult.getConnectionSource(),
                             connectivityStatusResolver,
                             connectivityConfig(),
-                            Source.combine(
-                                    Source.fromPublisher(genericMqttClient.unsolicitedPublishes()),
-                                    subscribeResult.getMqttPublishSourceOrThrow(),
-                                    Collections.emptyList(),
-                                    Merge::create))
+                            Source.fromPublisher(genericMqttClient.consumePublishes(subscribeResult.getConnectionSource())))
             );
         } else {
             throw subscribeResult.getErrorOrThrow();

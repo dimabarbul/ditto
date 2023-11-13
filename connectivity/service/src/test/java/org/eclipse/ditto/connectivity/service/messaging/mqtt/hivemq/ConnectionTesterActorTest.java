@@ -228,7 +228,6 @@ public final class ConnectionTesterActorTest {
     private static SubscribeResult getSourceSubscribeSuccess(final Source connectionSource) {
         final var result = Mockito.mock(SubscribeResult.class);
         Mockito.when(result.isSuccess()).thenReturn(true);
-        Mockito.when(result.getMqttPublishSourceOrThrow()).thenReturn(org.apache.pekko.stream.javadsl.Source.empty());
         Mockito.when(result.getConnectionSource()).thenReturn(connectionSource);
         return result;
     }
@@ -287,7 +286,6 @@ public final class ConnectionTesterActorTest {
 
         final var result = Mockito.mock(SubscribeResult.class);
         Mockito.when(result.isSuccess()).thenReturn(false);
-        Mockito.when(result.getMqttPublishSourceOrThrow()).thenThrow(new IllegalStateException("yo"));
         Mockito.when(result.getErrorOrThrow()).thenReturn(mqttSubscribeException);
         Mockito.when(result.getConnectionSource()).thenReturn(connectionSource);
         return result;

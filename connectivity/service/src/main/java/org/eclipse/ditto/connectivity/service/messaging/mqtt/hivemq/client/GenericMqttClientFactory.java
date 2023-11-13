@@ -78,7 +78,7 @@ public final class GenericMqttClientFactory {
         final var mqtt3Client = HiveMqttClientFactory.getMqtt3Client(hiveMqttClientProperties,
                 subscribingClientIdFactory.getMqttClientIdentifier(),
                 clientRole);
-        final var unsolicitedPublishesClient = BaseGenericMqttUnsolicitedPublishesClient.ofMqtt3AsyncClient(mqtt3Client.toAsync());
+        final var unsolicitedPublishesClient = BaseGenericMqttConsumingClient.ofMqtt3AsyncClient(mqtt3Client.toAsync());
         if (isSeparatePublisherClient(hiveMqttClientProperties)) {
 
             // Create separate HiveMQ MQTT client instance for subscribing client and publishing client.
@@ -137,7 +137,7 @@ public final class GenericMqttClientFactory {
         final var mqtt5Client = HiveMqttClientFactory.getMqtt5Client(hiveMqttClientProperties,
                 subscribingClientIdFactory.getMqttClientIdentifier(),
                 clientRole);
-        final var unsolicitedPublishesClient = BaseGenericMqttUnsolicitedPublishesClient.ofMqtt5AsyncClient(mqtt5Client.toAsync());
+        final var unsolicitedPublishesClient = BaseGenericMqttConsumingClient.ofMqtt5AsyncClient(mqtt5Client.toAsync());
         if (isSeparatePublisherClient(hiveMqttClientProperties)) {
             // Create separate HiveMQ MQTT client instance for subscribing client and publishing client.
             // Unsolicited publishes client must use the same client as connecting client to not lose unsolicited messages.

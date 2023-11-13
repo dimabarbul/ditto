@@ -20,9 +20,6 @@ import org.eclipse.ditto.base.model.common.ConditionChecker;
 import org.eclipse.ditto.connectivity.model.Source;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client.MqttSubscribeException;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubscribe;
-import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
-
-import org.apache.pekko.NotUsed;
 
 /**
  * Represents the result of subscribing a client with a Subscribe message ({@link GenericMqttSubscribe}).
@@ -67,15 +64,6 @@ public abstract class SubscribeResult {
     public Source getConnectionSource() {
         return connectionSource;
     }
-
-    /**
-     * Returns the stream of received MQTT Publish messages for subscribed topics if this result is a success.
-     *
-     * @return the stream of received MQTT Publish messages for subscribed topics.
-     * @throws IllegalStateException if this result is a failure.
-     * @see #isSuccess()
-     */
-    public abstract org.apache.pekko.stream.javadsl.Source<GenericMqttPublish, NotUsed> getMqttPublishSourceOrThrow();
 
     /**
      * Returns the error that caused subscribing to fail if this result is a failure.
