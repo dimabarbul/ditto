@@ -16,7 +16,6 @@ import java.util.concurrent.CompletionStage;
 
 import javax.annotation.concurrent.ThreadSafe;
 
-import io.reactivex.Flowable;
 import org.eclipse.ditto.base.model.common.ConditionChecker;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.connect.GenericMqttConnect;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
@@ -50,15 +49,17 @@ abstract class BaseGenericMqttPublishingClient<C extends MqttClient>
      * {@code Mqtt3AsyncClient} argument.
      *
      * @param mqtt3AsyncClient the MQTT client for sending Publish messages.
+     * @param connectingClient the MQTT client for establishing connection.
      * @param clientRole the role of the returned client.
      * @return the instance.
      * @throws NullPointerException if any argument is {@code null}.
      */
     static BaseGenericMqttPublishingClient<Mqtt3AsyncClient> ofMqtt3AsyncClient(final Mqtt3AsyncClient mqtt3AsyncClient,
-            BaseGenericMqttConnectableClient<?> connectingClient,
+            final GenericMqttConnectableClient connectingClient,
             final ClientRole clientRole) {
 
         ConditionChecker.checkNotNull(mqtt3AsyncClient, "mqtt3AsyncClient");
+        ConditionChecker.checkNotNull(connectingClient, "connectingClient");
         return new Mqtt3AsyncPublishingClient(mqtt3AsyncClient,
                 connectingClient,
                 clientRole);
@@ -69,15 +70,17 @@ abstract class BaseGenericMqttPublishingClient<C extends MqttClient>
      * {@code Mqtt5AsyncClient} argument.
      *
      * @param mqtt5AsyncClient the MQTT client for sending Publish messages.
+     * @param connectingClient The MQTT client for establishing connection.
      * @param clientRole the role of the returned client.
      * @return the instance.
      * @throws NullPointerException if any argument is {@code null}.
      */
     static BaseGenericMqttPublishingClient<Mqtt5AsyncClient> ofMqtt5AsyncClient(final Mqtt5AsyncClient mqtt5AsyncClient,
-            BaseGenericMqttConnectableClient<?> connectingClient,
+            final GenericMqttConnectableClient connectingClient,
             final ClientRole clientRole) {
 
         ConditionChecker.checkNotNull(mqtt5AsyncClient, "mqtt5AsyncClient");
+        ConditionChecker.checkNotNull(connectingClient, "connectingClient");
         return new Mqtt5AsyncPublishingClient(mqtt5AsyncClient,
                 connectingClient,
                 clientRole);

@@ -13,7 +13,6 @@
 package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.subscribing;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import org.eclipse.ditto.connectivity.model.Source;
@@ -76,17 +75,6 @@ public final class SubscribeFailureTest {
 
         assertThat(underTest.getConnectionSource()).isEqualTo(connectionSource);
     }
-
-    @Test
-    public void getMqttPublishSourceThrowsException() {
-        final var underTest = SubscribeFailure.newInstance(connectionSource, new MqttSubscribeException());
-
-        assertThatIllegalStateException()
-                .isThrownBy(underTest::getMqttPublishSourceOrThrow)
-                .withMessage("Failure cannot provide a MQTT Publish Source.")
-                .withNoCause();
-    }
-
     @Test
     public void getErrorReturnsExpectedError() {
         final var mqttSubscribeException = new MqttSubscribeException();

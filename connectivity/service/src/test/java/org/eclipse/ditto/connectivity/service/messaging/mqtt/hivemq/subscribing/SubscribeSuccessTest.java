@@ -16,8 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
-import java.util.stream.Stream;
-
+import org.apache.pekko.stream.javadsl.Source;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -27,7 +26,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 import com.hivemq.client.mqtt.datatypes.MqttQos;
 import com.hivemq.client.mqtt.datatypes.MqttTopic;
 
-import org.apache.pekko.stream.javadsl.Source;
 import nl.jqno.equalsverifier.EqualsVerifier;
 
 /**
@@ -64,56 +62,35 @@ public final class SubscribeSuccessTest {
     @Test
     public void newInstanceWithNullConnectionSourceThrowsException() {
         assertThatNullPointerException()
-                .isThrownBy(() -> SubscribeSuccess.newInstance(null, Source.empty()))
+                .isThrownBy(() -> SubscribeSuccess.newInstance(null))
                 .withMessage("The connectionSource must not be null!")
                 .withNoCause();
     }
 
     @Test
-    public void newInstanceWithNullMqttPublishSourceThrowsException() {
-        assertThatNullPointerException()
-                .isThrownBy(() -> SubscribeSuccess.newInstance(connectionSource, null))
-                .withMessage("The mqttPublishSource must not be null!")
-                .withNoCause();
-    }
-
-    @Test
     public void isSuccessReturnsTrue() {
-        final var underTest = SubscribeSuccess.newInstance(connectionSource, Source.empty());
+        final var underTest = SubscribeSuccess.newInstance(connectionSource);
 
         assertThat(underTest.isSuccess()).isTrue();
     }
 
     @Test
     public void isFailureReturnsFalse() {
-        final var underTest = SubscribeSuccess.newInstance(connectionSource, Source.empty());
+        final var underTest = SubscribeSuccess.newInstance(connectionSource);
 
         assertThat(underTest.isFailure()).isFalse();
     }
 
     @Test
     public void getConnectionSourceReturnsExpected() {
-        final var underTest = SubscribeSuccess.newInstance(connectionSource, Source.empty());
+        final var underTest = SubscribeSuccess.newInstance(connectionSource);
 
         assertThat(underTest.getConnectionSource()).isEqualTo(connectionSource);
     }
 
     @Test
-    public void getMqttPublishSourceReturnsExpected() {
-        final var mqttPublishSource = Source.fromJavaStream(
-                () -> Stream.of(
-                        GenericMqttPublish.builder(MQTT_TOPIC_SOURCE_STATUS, MqttQos.AT_LEAST_ONCE).build(),
-                        GenericMqttPublish.builder(MQTT_TOPIC_SOURCE_TEMPERATURE, MqttQos.AT_MOST_ONCE).build()
-                )
-        );
-        final var underTest = SubscribeSuccess.newInstance(connectionSource, mqttPublishSource);
-
-        assertThat(underTest.getMqttPublishSourceOrThrow()).isEqualTo(mqttPublishSource);
-    }
-
-    @Test
     public void getErrorOrThrowThrowsException() {
-        final var underTest = SubscribeSuccess.newInstance(connectionSource, Source.empty());
+        final var underTest = SubscribeSuccess.newInstance(connectionSource);
 
         assertThatIllegalStateException()
                 .isThrownBy(underTest::getErrorOrThrow)

@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.connect.GenericMqttConnect;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,9 +49,13 @@ public final class BaseGenericMqttPublishingClientTest {
         private static final Mqtt3Publish MQTT_3_PUBLISH = Mockito.mock(Mqtt3Publish.class);
         private static final GenericMqttPublish GENERIC_MQTT_PUBLISH =
                 GenericMqttPublish.ofMqtt3Publish(MQTT_3_PUBLISH);
+        private static final GenericMqttConnect GENERIC_MQTT_CONNECT = Mockito.mock(GenericMqttConnect.class);
 
         @Mock
         private Mqtt3AsyncClient mqtt3AsyncClient;
+
+        @Mock
+        private GenericMqttConnectableClient connectingClient;
 
         @Before
         public void before() {
@@ -61,23 +66,51 @@ public final class BaseGenericMqttPublishingClientTest {
         @Test
         public void ofMqtt3AsyncClientWithNullMqtt3AsyncClientThrowsException() {
             assertThatNullPointerException()
-                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(null, ClientRole.PUBLISHER))
+                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(null, connectingClient, ClientRole.PUBLISHER))
                     .withMessage("The mqtt3AsyncClient must not be null!")
+                    .withNoCause();
+        }
+
+        @Test
+        public void ofMqtt3AsyncClientWithNullConnectingClientThrowsException() {
+            assertThatNullPointerException()
+                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, null, ClientRole.PUBLISHER))
+                    .withMessage("The connectingClient must not be null!")
                     .withNoCause();
         }
 
         @Test
         public void ofMqtt3AsyncClientWithNullClientRoleThrowsException() {
             assertThatNullPointerException()
-                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, null))
+                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, connectingClient, null))
                     .withMessage("The clientRole must not be null!")
                     .withNoCause();
         }
 
         @Test
+        public void connectIsDelegatedToConnectingClient() {
+            final var underTest =
+                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, connectingClient, ClientRole.PUBLISHER);
+
+            underTest.connect(GENERIC_MQTT_CONNECT);
+
+            Mockito.verify(connectingClient).connect(Mockito.eq(GENERIC_MQTT_CONNECT));
+        }
+
+        @Test
+        public void disconnectIsDelegatedToConnectingClient() {
+            final var underTest =
+                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, connectingClient, ClientRole.PUBLISHER);
+
+            underTest.disconnect();
+
+            Mockito.verify(connectingClient).disconnect();
+        }
+
+        @Test
         public void publishWithNullThrowsException() {
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             assertThatNullPointerException()
                     .isThrownBy(() -> underTest.publish(null))
@@ -88,7 +121,7 @@ public final class BaseGenericMqttPublishingClientTest {
         @Test
         public void publishIsDelegatedToMqtt3AsyncClient() {
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             underTest.publish(GENERIC_MQTT_PUBLISH);
 
@@ -100,7 +133,7 @@ public final class BaseGenericMqttPublishingClientTest {
             Mockito.when(mqtt3AsyncClient.publish(Mockito.eq(MQTT_3_PUBLISH)))
                     .thenReturn(CompletableFuture.completedFuture(MQTT_3_PUBLISH));
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             final var publishResultCompletionStage = underTest.publish(GENERIC_MQTT_PUBLISH);
 
@@ -114,7 +147,7 @@ public final class BaseGenericMqttPublishingClientTest {
             Mockito.when(mqtt3AsyncClient.publish(Mockito.eq(MQTT_3_PUBLISH)))
                     .thenReturn(CompletableFuture.failedFuture(error));
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             final var publishResultCompletionStage = underTest.publish(GENERIC_MQTT_PUBLISH);
 
@@ -131,7 +164,7 @@ public final class BaseGenericMqttPublishingClientTest {
             Mockito.when(mqtt3AsyncClient.getConfig()).thenReturn(mqtt3ClientConfig);
             final var clientRole = ClientRole.PUBLISHER;
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, clientRole);
+                    BaseGenericMqttPublishingClient.ofMqtt3AsyncClient(mqtt3AsyncClient, connectingClient, clientRole);
 
             assertThat(underTest).hasToString(clientRole + ":" + mqttClientId);
         }
@@ -144,9 +177,11 @@ public final class BaseGenericMqttPublishingClientTest {
         private static final Mqtt5Publish MQTT_5_PUBLISH = Mockito.mock(Mqtt5Publish.class);
         private static final GenericMqttPublish GENERIC_MQTT_PUBLISH =
                 GenericMqttPublish.ofMqtt5Publish(MQTT_5_PUBLISH);
+        private static final GenericMqttConnect GENERIC_MQTT_CONNECT = Mockito.mock(GenericMqttConnect.class);
 
         @Mock private Mqtt5AsyncClient mqtt5AsyncClient;
         @Mock private Mqtt5PublishResult mqtt5PublishResult;
+        @Mock private GenericMqttConnectableClient connectingClient;
 
         @Before
         public void before() {
@@ -157,23 +192,51 @@ public final class BaseGenericMqttPublishingClientTest {
         @Test
         public void ofMqtt5AsyncClientWithNullMqtt5AsyncClientThrowsException() {
             assertThatNullPointerException()
-                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(null, ClientRole.PUBLISHER))
+                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(null, connectingClient, ClientRole.PUBLISHER))
                     .withMessage("The mqtt5AsyncClient must not be null!")
+                    .withNoCause();
+        }
+
+        @Test
+        public void ofMqtt5AsyncClientWithNullConnectingClientThrowsException() {
+            assertThatNullPointerException()
+                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, null, ClientRole.PUBLISHER))
+                    .withMessage("The connectingClient must not be null!")
                     .withNoCause();
         }
 
         @Test
         public void ofMqtt5AsyncClientWithNullClientRoleThrowsException() {
             assertThatNullPointerException()
-                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, null))
+                    .isThrownBy(() -> BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, null))
                     .withMessage("The clientRole must not be null!")
                     .withNoCause();
         }
 
         @Test
+        public void connectIsDelegatedToConnectingClient() {
+            final var underTest =
+                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, ClientRole.PUBLISHER);
+
+            underTest.connect(GENERIC_MQTT_CONNECT);
+
+            Mockito.verify(connectingClient).connect(Mockito.eq(GENERIC_MQTT_CONNECT));
+        }
+
+        @Test
+        public void disconnectIsDelegatedToConnectingClient() {
+            final var underTest =
+                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, ClientRole.PUBLISHER);
+
+            underTest.disconnect();
+
+            Mockito.verify(connectingClient).disconnect();
+        }
+
+        @Test
         public void publishWithNullThrowsException() {
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             assertThatNullPointerException()
                     .isThrownBy(() -> underTest.publish(null))
@@ -184,7 +247,7 @@ public final class BaseGenericMqttPublishingClientTest {
         @Test
         public void publishIsDelegatedToMqtt5AsyncClient() {
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             underTest.publish(GENERIC_MQTT_PUBLISH);
 
@@ -194,7 +257,7 @@ public final class BaseGenericMqttPublishingClientTest {
         @Test
         public void sendPublishReturnsCompletedStageWithExpectedSuccessResultIfNoErrorOccurred() {
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             final var publishResultCompletionStage = underTest.publish(GENERIC_MQTT_PUBLISH);
 
@@ -209,7 +272,7 @@ public final class BaseGenericMqttPublishingClientTest {
             Mockito.when(mqtt5AsyncClient.publish(Mockito.eq(MQTT_5_PUBLISH)))
                     .thenReturn(CompletableFuture.completedFuture(mqtt5PublishResult));
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             final var publishResultCompletionStage = underTest.publish(GENERIC_MQTT_PUBLISH);
 
@@ -223,7 +286,7 @@ public final class BaseGenericMqttPublishingClientTest {
             Mockito.when(mqtt5AsyncClient.publish(Mockito.eq(MQTT_5_PUBLISH)))
                     .thenReturn(CompletableFuture.failedFuture(error));
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, ClientRole.PUBLISHER);
+                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, ClientRole.PUBLISHER);
 
             final var publishResultCompletionStage = underTest.publish(GENERIC_MQTT_PUBLISH);
 
@@ -240,7 +303,7 @@ public final class BaseGenericMqttPublishingClientTest {
             Mockito.when(mqtt5AsyncClient.getConfig()).thenReturn(mqtt5ClientConfig);
             final var clientRole = ClientRole.PUBLISHER;
             final var underTest =
-                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, clientRole);
+                    BaseGenericMqttPublishingClient.ofMqtt5AsyncClient(mqtt5AsyncClient, connectingClient, clientRole);
 
             assertThat(underTest).hasToString(clientRole + ":" + mqttClientId);
         }

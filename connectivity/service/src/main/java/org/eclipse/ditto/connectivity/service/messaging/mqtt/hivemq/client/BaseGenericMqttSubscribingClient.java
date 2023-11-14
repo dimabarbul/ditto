@@ -61,15 +61,16 @@ abstract class BaseGenericMqttSubscribingClient<C extends MqttClient>
      * {@code Mqtt3RxClient} argument.
      *
      * @param mqtt3RxClient    the MQTT client for subscribing to topics.
-     * @param connectingClient
+     * @param connectingClient The MQTT client for establishing connection.
      * @return the instance.
      * @throws NullPointerException if {@code mqtt3AsyncClient} is {@code null}.
      */
     static BaseGenericMqttSubscribingClient<Mqtt3RxClient> ofMqtt3RxClient(final Mqtt3RxClient mqtt3RxClient,
-            BaseGenericMqttConnectableClient<?> connectingClient,
+            final GenericMqttConnectableClient connectingClient,
             final ClientRole clientRole) {
 
         checkNotNull(mqtt3RxClient, "mqtt3RxClient");
+        checkNotNull(connectingClient, "connectingClient");
         return new Mqtt3RxSubscribingClient(mqtt3RxClient,
                 connectingClient,
                 clientRole);
@@ -80,14 +81,16 @@ abstract class BaseGenericMqttSubscribingClient<C extends MqttClient>
      * {@code Mqtt5RxClient} argument.
      *
      * @param mqtt5RxClient the MQTT client for subscribing to topics.
+     * @param connectingClient The MQTT client for establishing connection.
      * @return the instance.
      * @throws NullPointerException if {@code mqtt5RxClient} is {@code null}.
      */
     static BaseGenericMqttSubscribingClient<Mqtt5RxClient> ofMqtt5RxClient(final Mqtt5RxClient mqtt5RxClient,
-            BaseGenericMqttConnectableClient<?> connectingClient,
+            final GenericMqttConnectableClient connectingClient,
             final ClientRole clientRole) {
 
         checkNotNull(mqtt5RxClient, "mqtt5RxClient");
+        checkNotNull(connectingClient, "connectingClient");
         return new Mqtt5RxSubscribingClient(mqtt5RxClient,
                 connectingClient,
                 clientRole);

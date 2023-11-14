@@ -60,6 +60,7 @@ public final class DefaultGenericMqttClientTest {
 
     private static final ConnectionId CONNECTION_ID = ConnectionId.generateRandom();
 
+    @Mock private BaseGenericMqttConsumingClient<?> consumingClient;
     @Mock private BaseGenericMqttSubscribingClient<?> subscribingClient;
     @Mock private BaseGenericMqttPublishingClient<?> publishingClient;
     @Mock private MqttConfig mqttConfig;
@@ -74,9 +75,21 @@ public final class DefaultGenericMqttClientTest {
     }
 
     @Test
-    public void newInstanceWithNullGenericMqttSubscribingClientThrowsException() {
+    public void newInstanceWithNullGenericMqttConsumingClientThrowsException() {
         Assertions.assertThatNullPointerException()
                 .isThrownBy(() -> DefaultGenericMqttClient.newInstance(null,
+                        subscribingClient,
+                        publishingClient,
+                        hiveMqttClientProperties))
+                .withMessage("The genericMqttConsumingClient must not be null!")
+                .withNoCause();
+    }
+
+    @Test
+    public void newInstanceWithNullGenericMqttSubscribingClientThrowsException() {
+        Assertions.assertThatNullPointerException()
+                .isThrownBy(() -> DefaultGenericMqttClient.newInstance(consumingClient,
+                        null,
                         publishingClient,
                         hiveMqttClientProperties))
                 .withMessage("The genericMqttSubscribingClient must not be null!")
@@ -86,7 +99,8 @@ public final class DefaultGenericMqttClientTest {
     @Test
     public void newInstanceWithNullGenericMqttPublishingClientThrowsException() {
         Assertions.assertThatNullPointerException()
-                .isThrownBy(() -> DefaultGenericMqttClient.newInstance(subscribingClient,
+                .isThrownBy(() -> DefaultGenericMqttClient.newInstance(consumingClient,
+                        subscribingClient,
                         null,
                         hiveMqttClientProperties))
                 .withMessage("The genericMqttPublishingClient must not be null!")
@@ -96,7 +110,7 @@ public final class DefaultGenericMqttClientTest {
     @Test
     public void newInstanceWithNullHiveMqttClientPropertiesThrowsException() {
         Assertions.assertThatNullPointerException()
-                .isThrownBy(() -> DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, null))
+                .isThrownBy(() -> DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, null))
                 .withMessage("The hiveMqttClientProperties must not be null!")
                 .withNoCause();
     }
@@ -116,7 +130,7 @@ public final class DefaultGenericMqttClientTest {
         Mockito.when(mqttSpecificConfig.cleanSession()).thenReturn(cleanSession);
         Mockito.when(mqttSpecificConfig.getKeepAliveIntervalOrDefault()).thenReturn(keepAliveInterval);
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
         final var genericMqttConnect = GenericMqttConnect.newInstance(cleanSession,
                 keepAliveInterval,
                 sessionExpiryInterval,
@@ -136,7 +150,7 @@ public final class DefaultGenericMqttClientTest {
         final var mqttSpecificConfig = MqttSpecificConfig.fromConnection(connection, Mockito.mock(MqttConfig.class));
         Mockito.when(hiveMqttClientProperties.getMqttSpecificConfig()).thenReturn(mqttSpecificConfig);
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var connectFuture = underTest.connect();
 
@@ -151,7 +165,7 @@ public final class DefaultGenericMqttClientTest {
     @Test
     public void connectWithNullGenericMqttConnectThrowsException() {
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         Assertions.assertThatNullPointerException()
                 .isThrownBy(() -> underTest.connect(null))
@@ -167,7 +181,7 @@ public final class DefaultGenericMqttClientTest {
                 SessionExpiryInterval.defaultSessionExpiryInterval(),
                 ReceiveMaximum.defaultReceiveMaximum());
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         underTest.connect(genericMqttConnect);
 
@@ -186,7 +200,7 @@ public final class DefaultGenericMqttClientTest {
                 SessionExpiryInterval.defaultSessionExpiryInterval(),
                 ReceiveMaximum.defaultReceiveMaximum());
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         underTest.connect(genericMqttConnect);
 
@@ -205,7 +219,7 @@ public final class DefaultGenericMqttClientTest {
                 SessionExpiryInterval.defaultSessionExpiryInterval(),
                 ReceiveMaximum.defaultReceiveMaximum());
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var connectFuture = underTest.connect(genericMqttConnect);
 
@@ -227,7 +241,7 @@ public final class DefaultGenericMqttClientTest {
         Mockito.when(publishingClient.connect(Mockito.any()))
                 .thenReturn(CompletableFuture.failedFuture(illegalStateException));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var connectFuture = underTest.connect(GenericMqttConnect.newInstance(false,
                 KeepAliveInterval.defaultKeepAlive(),
@@ -249,7 +263,7 @@ public final class DefaultGenericMqttClientTest {
         Mockito.when(subscribingClient.disconnect()).thenReturn(CompletableFuture.completedFuture(null));
         Mockito.when(publishingClient.disconnect()).thenReturn(CompletableFuture.completedFuture(null));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var disconnectFuture = underTest.disconnect();
 
@@ -265,7 +279,7 @@ public final class DefaultGenericMqttClientTest {
         Mockito.when(subscribingClient.disconnect()).thenReturn(CompletableFuture.failedFuture(illegalStateException));
         Mockito.when(publishingClient.disconnect()).thenReturn(CompletableFuture.completedFuture(null));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var disconnectFuture = underTest.disconnect();
 
@@ -282,7 +296,7 @@ public final class DefaultGenericMqttClientTest {
         final var illegalStateException = new IllegalStateException("Yolo!");
         Mockito.when(publishingClient.disconnect()).thenReturn(CompletableFuture.failedFuture(illegalStateException));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var disconnectFuture = underTest.disconnect();
 
@@ -296,7 +310,7 @@ public final class DefaultGenericMqttClientTest {
     @Test
     public void disconnectClientRoleWithNullThrowsException() {
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         Assertions.assertThatNullPointerException()
                 .isThrownBy(() -> underTest.disconnectClientRole(null))
@@ -308,7 +322,7 @@ public final class DefaultGenericMqttClientTest {
     public void disconnectClientRoleWithConsumerRoleDisconnectsOnlySubscribingClient() {
         Mockito.when(subscribingClient.disconnect()).thenReturn(CompletableFuture.completedFuture(null));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var disconnectFuture = underTest.disconnectClientRole(ClientRole.CONSUMER);
 
@@ -322,7 +336,7 @@ public final class DefaultGenericMqttClientTest {
     public void disconnectClientRoleWithPublisherRoleDisconnectsOnlyPublishingClient() {
         Mockito.when(publishingClient.disconnect()).thenReturn(CompletableFuture.completedFuture(null));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var disconnectFuture = underTest.disconnectClientRole(ClientRole.PUBLISHER);
 
@@ -337,7 +351,7 @@ public final class DefaultGenericMqttClientTest {
         Mockito.when(subscribingClient.disconnect()).thenReturn(CompletableFuture.completedFuture(null));
         Mockito.when(publishingClient.disconnect()).thenReturn(CompletableFuture.completedFuture(null));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var disconnectFuture = underTest.disconnectClientRole(ClientRole.CONSUMER_PUBLISHER);
 
@@ -356,7 +370,7 @@ public final class DefaultGenericMqttClientTest {
         Mockito.when(subscribingClient.subscribe(Mockito.eq(genericMqttSubscribe)))
                 .thenReturn(Single.just(genericMqttSubAck));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         final var genericMqttSubAckSingle = underTest.subscribe(genericMqttSubscribe);
 
@@ -385,12 +399,12 @@ public final class DefaultGenericMqttClientTest {
                         .payload(ByteBufferUtils.fromUtf8String("definitively online"))
                         .build()
         );
-        Mockito.when(subscribingClient.consumeSubscribedPublishesWithManualAcknowledgement())
+        Mockito.when(consumingClient.consumePublishes())
                 .thenReturn(Flowable.fromIterable(genericMqttPublishes));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
-        final var genericMqttMqttPublishFlowable = underTest.consumeSubscribedPublishesWithManualAcknowledgement();
+        final var genericMqttMqttPublishFlowable = underTest.consumePublishes();
 
         assertThat(subscribeForFlowableValueResponse(genericMqttMqttPublishFlowable))
                 .succeedsWithin(Duration.ofSeconds(1L))
@@ -417,7 +431,7 @@ public final class DefaultGenericMqttClientTest {
         Mockito.when(publishingClient.publish(Mockito.eq(genericMqttPublish)))
                 .thenReturn(CompletableFuture.completedFuture(genericMqttPublishResult));
         final var underTest =
-                DefaultGenericMqttClient.newInstance(subscribingClient, publishingClient, hiveMqttClientProperties);
+                DefaultGenericMqttClient.newInstance(consumingClient, subscribingClient, publishingClient, hiveMqttClientProperties);
 
         assertThat(underTest.publish(genericMqttPublish))
                 .succeedsWithin(Duration.ofSeconds(1L))

@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.apache.pekko.actor.ActorSystem;
+import org.apache.pekko.stream.javadsl.Sink;
+import org.apache.pekko.stream.testkit.javadsl.TestSink;
 import org.assertj.core.api.JUnitSoftAssertions;
 import org.eclipse.ditto.connectivity.model.Source;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client.GenericMqttClient;
@@ -45,10 +48,6 @@ import org.mockito.junit.MockitoJUnitRunner;
 import com.hivemq.client.mqtt.datatypes.MqttQos;
 import com.hivemq.client.mqtt.datatypes.MqttTopicFilter;
 
-import org.apache.pekko.actor.ActorSystem;
-import org.apache.pekko.stream.javadsl.Sink;
-import org.apache.pekko.stream.testkit.javadsl.TestSink;
-import io.reactivex.Flowable;
 import io.reactivex.Single;
 
 /**
@@ -127,8 +126,6 @@ public final class MqttSubscriberTest {
         final var genericMqttSubAck = Mockito.mock(GenericMqttSubAck.class);
         Mockito.when(genericMqttClient.subscribe(Mockito.any(GenericMqttSubscribe.class)))
                 .thenReturn(Single.just(genericMqttSubAck));
-        Mockito.when(genericMqttClient.consumeSubscribedPublishesWithManualAcknowledgement())
-                .thenReturn(Flowable.never());
         final var mqttQos = MqttQos.AT_LEAST_ONCE;
         final var connectionSource1 = mockConnectionSource(Set.of("foo", "bar"), mqttQos);
         final var connectionSource2 = mockConnectionSource(Set.of("baz"), mqttQos);
