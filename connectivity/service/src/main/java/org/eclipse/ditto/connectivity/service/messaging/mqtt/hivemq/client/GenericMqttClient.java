@@ -14,6 +14,11 @@ package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client;
 
 import java.util.concurrent.CompletionStage;
 
+import org.eclipse.ditto.connectivity.model.Source;
+import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
+
+import io.reactivex.Flowable;
+
 /**
  * An MQTT client with a tailored interface.
  * It abstracts protocol version 3 and 5.
@@ -56,5 +61,15 @@ public interface GenericMqttClient
      * @throws NullPointerException if {@code clientRole} is {@code null}.
      */
     CompletionStage<Void> disconnectClientRole(ClientRole clientRole);
+
+    /**
+     * Consumes publishes for the specified source.
+     * If buffering is enabled, the flowable returns all buffered publishes as well.
+     * Buffering can be stopped by calling {@link #stopBufferingPublishes()}
+     *
+     * @param source the source to consume messages for.
+     * @return the {@code Flowable} which emits publishes for the source.
+     */
+    Flowable<GenericMqttPublish> consumePublishes(final Source source);
 
 }

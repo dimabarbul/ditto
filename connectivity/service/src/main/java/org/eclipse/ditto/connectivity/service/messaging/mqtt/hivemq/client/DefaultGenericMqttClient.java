@@ -14,6 +14,7 @@ package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client;
 
 import static org.eclipse.ditto.base.model.common.ConditionChecker.checkNotNull;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -166,7 +167,25 @@ final class DefaultGenericMqttClient implements GenericMqttClient {
 
     @Override
     public Flowable<GenericMqttPublish> consumePublishes(final Source source) {
-        return consumingClient.consumePublishes(source);
+        System.out.println("Returning unsolicited flowable from consuming client for source " + source);
+        final List<MqttTopicFilter> topicFilters =
+                source.getAddresses().stream()
+                        .map(MqttTopicFilter::of)
+                        .toList();
+        return consumePublishes()
+                .filter(publish -> messageHasRightTopicPath(publish, topicFilters));
+    }
+
+    /**
+     * Filters messages which match any of the given topic filters.
+     *
+     * @param genericMqttPublish a consumed MQTT message.
+     * @param topicFilters the topic filters applied to consumed messages.
+     * @return whether the message matches any of the given topic filters.
+     */
+    private static boolean messageHasRightTopicPath(final GenericMqttPublish genericMqttPublish,
+            final List<MqttTopicFilter> topicFilters) {
+        return topicFilters.stream().anyMatch(filter -> filter.matches(genericMqttPublish.getTopic()));
     }
 
     @Override
@@ -177,11 +196,6 @@ final class DefaultGenericMqttClient implements GenericMqttClient {
     @Override
     public Single<GenericMqttSubAck> subscribe(final GenericMqttSubscribe genericMqttSubscribe) {
         return subscribingClient.subscribe(genericMqttSubscribe);
-    }
-
-    @Override
-    public Flowable<GenericMqttPublish> consumeSubscribedPublishesWithManualAcknowledgement() {
-        return subscribingClient.consumeSubscribedPublishesWithManualAcknowledgement();
     }
 
     @Override

@@ -12,7 +12,6 @@
  */
 package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client;
 
-import org.eclipse.ditto.connectivity.model.Source;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 
 import io.reactivex.Flowable;
@@ -34,17 +33,8 @@ public interface GenericMqttConsumingClient extends Disposable {
     Flowable<GenericMqttPublish> consumePublishes();
 
     /**
-     * Consumes publishes for the specified source.
-     * If buffering is enabled, the flowable returns all buffered publishes as well.
-     *
-     * @param source the source to consume messages for.
-     * @return the {@code Flowable} which emits publishes for the source.
-     */
-    Flowable<GenericMqttPublish> consumePublishes(final Source source);
-
-    /**
      * Stops buffering publishes. All new subscribers that use {@code consumePublishes}
-     * methods will get only new publishes.
+     * method will get only new publishes.
      */
     void stopBufferingPublishes();
 

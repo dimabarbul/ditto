@@ -14,17 +14,14 @@ package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client;
 
 import static org.eclipse.ditto.base.model.common.ConditionChecker.checkNotNull;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.eclipse.ditto.base.model.common.ConditionChecker;
-import org.eclipse.ditto.connectivity.model.Source;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 
 import com.hivemq.client.mqtt.MqttClient;
 import com.hivemq.client.mqtt.MqttGlobalPublishFilter;
 import com.hivemq.client.mqtt.datatypes.MqttClientIdentifier;
-import com.hivemq.client.mqtt.datatypes.MqttTopicFilter;
 import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish;
 import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient;
@@ -60,29 +57,6 @@ abstract class BaseGenericMqttConsumingClient<C extends MqttClient> implements G
         final var mqttClientConfig = mqttClient.getConfig();
         final var clientIdentifier = mqttClientConfig.getClientIdentifier();
         return clientIdentifier.toString();
-    }
-
-    @Override
-    public Flowable<GenericMqttPublish> consumePublishes(final Source source) {
-        System.out.println("Returning unsolicited flowable from consuming client for source " + source);
-        final List<MqttTopicFilter> topicFilters =
-                source.getAddresses().stream()
-                        .map(MqttTopicFilter::of)
-                        .toList();
-        return consumePublishes()
-                .filter(publish -> messageHasRightTopicPath(publish, topicFilters));
-    }
-
-    /**
-     * Filters messages which match any of the given topic filters.
-     *
-     * @param genericMqttPublish a consumed MQTT message.
-     * @param topicFilters the topic filters applied to consumed messages.
-     * @return whether the message matches any of the given topic filters.
-     */
-    protected static boolean messageHasRightTopicPath(final GenericMqttPublish genericMqttPublish,
-            final List<MqttTopicFilter> topicFilters) {
-        return topicFilters.stream().anyMatch(filter -> filter.matches(genericMqttPublish.getTopic()));
     }
 
     private static final class Mqtt3ConsumingClient extends BaseGenericMqttConsumingClient<Mqtt3AsyncClient> {

@@ -14,13 +14,11 @@ package org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client;
 
 import java.util.concurrent.CompletionStage;
 
-import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubAck;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubscribe;
 
 import com.hivemq.client.mqtt.datatypes.MqttTopicFilter;
 
-import io.reactivex.Flowable;
 import io.reactivex.Single;
 
 /**
@@ -58,33 +56,10 @@ public interface GenericMqttSubscribingClient {
      *         the Subscribe message was sent or before a SubAck message was received.
      *     </li>
      * </ul>
-     * @see #consumeSubscribedPublishesWithManualAcknowledgement() for consuming the incoming Publish messages for the
+     * @see GenericMqttConsumingClient#consumePublishes() for consuming the incoming Publish messages for the
      * subscribed topics.
      */
     Single<GenericMqttSubAck> subscribe(GenericMqttSubscribe genericMqttSubscribe);
-
-    /**
-     * Creates a {@link Flowable} for globally consuming all incoming Publish messages resulting from subscriptions
-     * made by the client.
-     *
-     * <em>The Publish messages have to be acknowledged manually.</em>
-     *
-     * @return the {@code Flowable} which
-     * <ul>
-     *     <li>
-     *         emits the incoming Publish messages matching
-     *         {@link com.hivemq.client.mqtt.MqttGlobalPublishFilter#SUBSCRIBED MqttGlobalPublishFilter.SUBSCRIBED},
-     *     </li>
-     *     <li>never completes but</li>
-     *     <li>
-     *         errors with an
-     *         {@link com.hivemq.client.mqtt.exceptions.MqttSessionExpiredException MqttSessionExpiredException} when
-     *         the MQTT session expires.
-     *     </li>
-     * </ul>
-     * @see #subscribe(GenericMqttSubscribe)
-     */
-    Flowable<GenericMqttPublish> consumeSubscribedPublishesWithManualAcknowledgement();
 
     /**
      * Unsubscribe from the topic filters.

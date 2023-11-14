@@ -19,13 +19,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.connect.GenericMqttConnect;
-import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubAck;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubscribe;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubscription;
 
 import com.hivemq.client.mqtt.MqttClient;
-import com.hivemq.client.mqtt.MqttGlobalPublishFilter;
 import com.hivemq.client.mqtt.datatypes.MqttTopicFilter;
 import com.hivemq.client.mqtt.mqtt3.Mqtt3RxClient;
 import com.hivemq.client.mqtt.mqtt3.exceptions.Mqtt3SubAckException;
@@ -35,7 +33,6 @@ import com.hivemq.client.mqtt.mqtt5.exceptions.Mqtt5SubAckException;
 import com.hivemq.client.mqtt.mqtt5.message.unsubscribe.Mqtt5Unsubscribe;
 
 import io.reactivex.Completable;
-import io.reactivex.Flowable;
 import io.reactivex.Single;
 import io.reactivex.SingleTransformer;
 import io.reactivex.subjects.SingleSubject;
@@ -169,15 +166,6 @@ abstract class BaseGenericMqttSubscribingClient<C extends MqttClient>
     }
 
     @Override
-    public Flowable<GenericMqttPublish> consumeSubscribedPublishesWithManualAcknowledgement() {
-        return consumeIncomingPublishes(mqttClient, MqttGlobalPublishFilter.SUBSCRIBED, true);
-    }
-
-    protected abstract Flowable<GenericMqttPublish> consumeIncomingPublishes(C mqttClient,
-            MqttGlobalPublishFilter filter,
-            boolean manualAcknowledgement);
-
-    @Override
     public CompletionStage<Void> connect(final GenericMqttConnect genericMqttConnect) {
         return connectingClient.connect(genericMqttConnect);
     }
@@ -238,14 +226,6 @@ abstract class BaseGenericMqttSubscribingClient<C extends MqttClient>
             }
         }
 
-        @Override
-        protected Flowable<GenericMqttPublish> consumeIncomingPublishes(final Mqtt3RxClient mqtt3RxClient,
-                final MqttGlobalPublishFilter filter,
-                final boolean manualAcknowledgement) {
-
-            return mqtt3RxClient.publishes(filter, manualAcknowledgement).map(GenericMqttPublish::ofMqtt3Publish);
-        }
-
     }
 
     private static final class Mqtt5RxSubscribingClient extends BaseGenericMqttSubscribingClient<Mqtt5RxClient> {
@@ -285,14 +265,6 @@ abstract class BaseGenericMqttSubscribingClient<C extends MqttClient>
             final var unsubscribe =
                     Mqtt5Unsubscribe.builder().addTopicFilters(mqttTopicFilters).build();
             return mqtt5RxClient.unsubscribe(unsubscribe).ignoreElement();
-        }
-
-        @Override
-        protected Flowable<GenericMqttPublish> consumeIncomingPublishes(final Mqtt5RxClient mqtt5RxClient,
-                final MqttGlobalPublishFilter filter,
-                final boolean manualAcknowledgement) {
-
-            return mqtt5RxClient.publishes(filter, manualAcknowledgement).map(GenericMqttPublish::ofMqtt5Publish);
         }
 
     }

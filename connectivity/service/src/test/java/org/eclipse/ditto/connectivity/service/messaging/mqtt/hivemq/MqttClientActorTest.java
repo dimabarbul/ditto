@@ -79,7 +79,6 @@ import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.client.MqttS
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.publish.GenericMqttPublish;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubAck;
 import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubscribe;
-import org.eclipse.ditto.connectivity.service.messaging.mqtt.hivemq.message.subscribe.GenericMqttSubscription;
 import org.eclipse.ditto.internal.utils.pekko.ActorSystemResource;
 import org.eclipse.ditto.things.model.ThingId;
 import org.eclipse.ditto.things.model.signals.commands.modify.DeleteThingResponse;
@@ -94,7 +93,6 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import com.hivemq.client.mqtt.MqttVersion;
 import com.hivemq.client.mqtt.datatypes.MqttQos;
 import com.hivemq.client.mqtt.datatypes.MqttTopic;
 import com.typesafe.config.ConfigFactory;
@@ -173,7 +171,9 @@ public final class MqttClientActorTest extends AbstractBaseClientActorTest {
         when(genericMqttClient.disconnect()).thenReturn(CompletableFuture.completedFuture(null));
         when(genericMqttClient.subscribe(any()))
                 .thenReturn(Single.just(mock(GenericMqttSubAck.class)));
-        when(genericMqttClient.consumeSubscribedPublishesWithManualAcknowledgement())
+        when(genericMqttClient.consumePublishes())
+                .thenReturn(Flowable.never());
+        when(genericMqttClient.consumePublishes(any()))
                 .thenReturn(Flowable.never());
         when(genericMqttClient.publish(any()))
                 .thenAnswer(invocation -> {
@@ -368,18 +368,11 @@ public final class MqttClientActorTest extends AbstractBaseClientActorTest {
         doAnswer(invocation -> {
                     final GenericMqttSubscribe genericMqttSubscribe = invocation.getArgument(0);
 
-                    final var subscribedMqttTopicFilters = genericMqttSubscribe.genericMqttSubscriptions()
-                            .map(GenericMqttSubscription::getMqttTopicFilter)
-                            .collect(Collectors.toList());
-
                     // This needs to be a side effect, unfortunately.
-                    when(genericMqttClient.consumeSubscribedPublishesWithManualAcknowledgement())
-                            .thenReturn(Flowable.fromIterable(
-                                    Stream.of(incomingPublishes)
-                                            .filter(incoming -> subscribedMqttTopicFilters.stream()
-                                                    .anyMatch(topicFilter -> topicFilter.matches(incoming.getTopic())))
-                                            .collect(Collectors.toList())
-                            ));
+                    when(genericMqttClient.consumePublishes())
+                            .thenReturn(Flowable.fromArray(incomingPublishes));
+                    when(genericMqttClient.consumePublishes(any()))
+                            .thenReturn(Flowable.fromArray(incomingPublishes));
 
                     return Single.just(mock(GenericMqttSubAck.class));
                 })
